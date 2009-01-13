@@ -1,7 +1,5 @@
 #summary List of tasks to be completed
 #labels Phase-Design,Phase-Requirements,Phase-Implementation
-
-= ToDo =
 	* Install function?
 	* Verification of toolchain build success
 	* Fix build errors on 64-bit
