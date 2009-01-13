@@ -1,0 +1,27 @@
+#summary List of tasks to be completed
+#labels Phase-Design,Phase-Requirements,Phase-Implementation
+
+= ToDo =
+	* Install function?
+	* Verification of toolchain build success
+	* Fix build errors on 64-bit
+	* Clean up visuals - better colours and output formatting
+	* Support for building older toolchains (2.1? 2.0?) and future proofing.
+	* Check all possible failure points to introduce graceful failure
+	* Verify APSL agreement success
+	* Support for MIG
+	* Complete documentation
+	* Perhaps this will need to support automation through predefined variables and a "-f" parameter or something.
+	* Support for defining some parameters externally (document these):
+		* APPLE_ID
+		* APPLE_PASSWORD
+		* FW_FILE
+	* Prevent users running steps in the wrong order. Checks for the presence of the required resources.
+	* Implement class-dump support -> Investigate whether we can use a phone library set or if we need the pure SDKs
+	* Try to perform more general library checks rather than using NEEDED_PACKAGES.
+	* Port to leopard
+	* Fix up 4-spaces instead of tabs
+	* Testing
+		* Test on 64-bit systems
+		* Test on Leopard
+		* Test multiversion support (incomplete)
