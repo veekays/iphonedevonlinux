@@ -1,0 +1,24 @@
+#summary Installation of the toolchain
+#labels Phase-Deploy
+
+= Some short notes about installation of the toolchain =
+
+== Toolchain for firmware 2.2 (currently only 32Bit Linux) ==
+
+First create a project dir. Now download the iphone_sdk 2.2 from apple. You could also download the 2.2 firmware from apple. If not, the script is downloading the file itself.
+
+{{{
+mkdir ~/Projects/iphone/toolchain
+cd ~/Projects/iphone/toolchain
+svn checkout -r43 http://iphonedevonlinux.googlecode.com/svn/trunk ./
+mkdir files
+mkdir files/firmware
+mv /path/to/iphone_sdk_2.2_file ./files/
+mv /path/to/firmware2.2_file ./files/firmware
+./toolchain.sh headers
+./toolchain.sh darwin_sources
+./toolchain.sh firmware
+./toolchain.sh build
+}}}
+
+After all steps the toolchain is in ./toolchain with the binaries in ./toolchain/pre/bin and the system in ./toolchain/sys/
