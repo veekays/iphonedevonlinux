@@ -10,7 +10,7 @@ First create a project dir. Now download the iphone_sdk 2.2 from apple. You coul
 {{{
 mkdir ~/Projects/iphone/toolchain
 cd ~/Projects/iphone/toolchain
-svn checkout -r43 http://iphonedevonlinux.googlecode.com/svn/trunk ./
+svn checkout -r45 http://iphonedevonlinux.googlecode.com/svn/trunk ./
 mkdir files
 mkdir files/firmware
 mv /path/to/iphone_sdk_2.2_file ./files/
