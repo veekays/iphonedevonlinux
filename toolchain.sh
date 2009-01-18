@@ -25,7 +25,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 # What version of the toolchain are we building?
-TOOLCHAIN_VERSION="2.2"
+TOOLCHAIN_VERSION="2.1"
 
 # Everything is built relative to IPHONEDEV_DIR
 IPHONEDEV_DIR="`pwd`"
@@ -109,8 +109,8 @@ HERE=`pwd`
 # Compare two version strings and return a string indicating whether the first version number
 # is newer, older or equal to the second. This is quite dumb, but it works.
 vercmp() {
-	V1=`echo "$1" | sed -e 's/[^0-9]//g' | LANG=C awk '{ printf "%0.10f", "0."$0 }'`
-	V2=`echo "$2" | sed -e 's/[^0-9]//g' | LANG=C awk '{ printf "%0.10f", "0."$0 }'`
+	V1=`echo "$1" | sed -e 's/[^0-9]//g' | awk '{ printf "%0.10f", "0."$0 }'`
+	V2=`echo "$2" | sed -e 's/[^0-9]//g' | awk '{ printf "%0.10f", "0."$0 }'`
 	[[ $V1 > $V2 ]] && echo "newer"
 	[[ $V1 == $V2 ]] && echo "equal"
 	[[ $V1 < $V2 ]] && echo "older"
@@ -641,12 +641,12 @@ toolchain_build() {
 	ln -s . System
 
 	cp -af "${IPHONE_SDK_INC}"/* .
-	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.7.58/osfmk/* .
-	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.7.58/bsd/* . 
+	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/osfmk/* .
+	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/bsd/* . 
 
 	echo "mach"
-	cp -af "${DARWIN_SOURCES_DIR}"/cctools-*/include/mach .
-	cp -af "${DARWIN_SOURCES_DIR}"/cctools-*/include/mach-o .
+	cp -af "${DARWIN_SOURCES_DIR}"/cctools-667.3/include/mach .
+	cp -af "${DARWIN_SOURCES_DIR}"/cctools-667.3/include/mach-o .
 	cp -af "${IPHONE_SDK_INC}"/mach-o/dyld.h mach-o
 
 	cp -af "${LEOPARD_SDK_INC}"/mach/machine mach
@@ -658,9 +658,9 @@ toolchain_build() {
 	cp -af "${LEOPARD_SDK_INC}"/sys/dtrace.h sys
 
 	cp -af "${LEOPARD_SDK_LIBS}"/Kernel.framework/Versions/A/Headers/machine/disklabel.h machine
-	cp -af "${DARWIN_SOURCES_DIR}"/configd-*/dnsinfo/dnsinfo.h .
-	cp -a "${DARWIN_SOURCES_DIR}"/Libc-*/include/kvm.h .
-	cp -a "${DARWIN_SOURCES_DIR}"/launchd-*/launchd/src/*.h .
+	cp -af "${DARWIN_SOURCES_DIR}"/configd-210/dnsinfo/dnsinfo.h .
+	cp -a "${DARWIN_SOURCES_DIR}"/Libc-498/include/kvm.h .
+	cp -a "${DARWIN_SOURCES_DIR}"/launchd-258.1/launchd/src/*.h .
 
 	cp -a i386/disklabel.h arm
 	cp -a mach/i386/machine_types.defs mach/arm
@@ -694,7 +694,7 @@ toolchain_build() {
 	cp -a "${DARWIN_SOURCES_DIR}"/DiskArbitration-*/DiskArbitration/*.h DiskArbitration
 
 	echo "iokit"
-	cp -a "${DARWIN_SOURCES_DIR}"/xnu-*/iokit/IOKit .
+	cp -a "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/iokit/IOKit .
 	cp -a "${DARWIN_SOURCES_DIR}"/IOKitUser-*/*.h IOKit
 
 	cp -a "${DARWIN_SOURCES_DIR}"/IOGraphics-*/IOGraphicsFamily/IOKit/graphics IOKit
@@ -712,12 +712,13 @@ toolchain_build() {
 	cp -a "${DARWIN_SOURCES_DIR}"/IOCDStorageFamily-*/*.h IOKit/storage
 	cp -a "${DARWIN_SOURCES_DIR}"/IODVDStorageFamily-*/*.h IOKit/storage
 
-	mkdir DirectoryService
-	cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/APIFramework/*.h DirectoryService
+	# This wasn't in 2.1 toolchain instructions from saurik
+	#mkdir DirectoryService
+	#cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/APIFramework/*.h DirectoryService
 
-	mkdir DirectoryServiceCore
-	cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Private/*.h DirectoryServiceCore
-	cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Public/*.h DirectoryServiceCore 
+	#mkdir DirectoryServiceCore
+	#cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Private/*.h DirectoryServiceCore
+	#cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Public/*.h DirectoryServiceCore 
 
 	mkdir SystemConfiguration
 	echo "configd"
@@ -745,7 +746,7 @@ toolchain_build() {
 		mkdir -p $framework
 		cp -a "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* $framework
 	done
-	
+
 	mkdir AddressBook
 	cp -aH "${IPHONE_SDK_LIBS}"/AddressBook.framework/Headers/* AddressBook
 
@@ -770,7 +771,7 @@ toolchain_build() {
 	echo "WebCore"
 	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
 	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/bridge/mac/*.h WebCore 
-	for subdir in css dom editing history html loader page platform{,/{graphics,text}} rendering; do
+	for subdir in css dom editing history html loader page platform{,/graphics} rendering; do
 	    cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/"${subdir}"/*.h WebCore
 	done
 
@@ -798,17 +799,17 @@ toolchain_build() {
 		error "Missing include.diff! This file is required to merge the OSX and iPhone SDKs."
 		exit 1
 	fi
-
 	# this step may have a bad hunk in CoreFoundation and thread_status while patching
 	# these errors are to be ignored, as these are changes for issues Apple has now fixed
 	# include.diff is a modified version the telesphoreo patchs to support iPhone 2.2 SDK.
         pushd "usr/include"
 	patch -p3 -N < "${HERE}/include.diff"
-	wget -qO arm/locks.h http://svn.telesphoreo.org/trunk/tool/patches/locks.h
+
+	svn cat  http://svn.telesphoreo.org/trunk/tool/patches/locks.h@226 > arm/locks.h
 
 	mkdir -p GraphicsServices
 	cd GraphicsServices
-	wget -q http://svn.telesphoreo.org/trunk/tool/patches/GraphicsServices.h
+	svn cat http://svn.telesphoreo.org/trunk/tool/patches/GraphicsServices.h@334 > GraphicsServices.h
         
         popd
 
@@ -816,7 +817,7 @@ toolchain_build() {
 	message_status "Checking out iphone-dev repo..."
 	mkdir -p "${CSU_DIR}"
 	cd "${CSU_DIR}"
-	svn co http://iphone-dev.googlecode.com/svn/trunk/csu .
+	svn co -r202 http://iphone-dev.googlecode.com/svn/trunk/csu .
 	cp -a *.o "$TOOLCHAIN/sys"/usr/lib
 	cd "$TOOLCHAIN/sys"/usr/lib
 	chmod 644 *.o
@@ -834,7 +835,7 @@ toolchain_build() {
     
 	message_status "Checking out odcctools..."
 	mkdir -p "${CCTOOLS_DIR}"
-	svn co http://iphone-dev.googlecode.com/svn/branches/odcctools-9.2-ld "${CCTOOLS_DIR}"
+	svn co -r276 http://iphone-dev.googlecode.com/svn/branches/odcctools-9.2-ld "${CCTOOLS_DIR}"
 
 	message_status "Configuring cctools-iphone..."
 	mkdir -p "$TOOLCHAIN/pre"
@@ -924,6 +925,7 @@ check_environment() {
 	message_action "Preparing the environment"
 	cecho bold "Toolchain version: ${TOOLCHAIN_VERSION}"
 	cecho bold "Building in: ${IPHONEDEV_DIR}"
+	
 	if [[ "`vercmp $TOOLCHAIN_VERSION 2.0`" == "older" ]]; then
 		error "The toolchain builder is only capable of building toolchains targeting"
 		error "iPhone SDK >=2.0. Sorry."
