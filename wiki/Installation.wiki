@@ -1,24 +1,72 @@
 #summary Installation of the toolchain
 #labels Phase-Deploy
 
-= Some short notes about installation of the toolchain =
+= Building the Toolchain =
 
 == Toolchain for firmware 2.2 (currently only 32Bit Linux) ==
 
-First create a project dir. Now download the iphone_sdk 2.2 from apple. You could also download the 2.2 firmware from apple. If not, the script is downloading the file itself.
-
+First create a project directory and check out the latest copy of the toolchain builder. For Example:
 {{{
-mkdir ~/Projects/iphone/toolchain
+mkdir -p ~/Projects/iphone/
 cd ~/Projects/iphone/toolchain
-svn checkout -r45 http://iphonedevonlinux.googlecode.com/svn/trunk ./
-mkdir files
-mkdir files/firmware
-mv /path/to/iphone_sdk_2.2_file ./files/
-mv /path/to/firmware2.2_file ./files/firmware
-./toolchain.sh headers
-./toolchain.sh darwin_sources
-./toolchain.sh firmware
-./toolchain.sh build
+svn checkout http://iphonedevonlinux.googlecode.com/svn/trunk/ ./
 }}}
 
-After all steps the toolchain is in ./toolchain with the binaries in ./toolchain/pre/bin and the system in ./toolchain/sys/
+You will need to download the iPhone SDK 2.2 from Apple, which can be found here: [http://developer.apple.com/iphone/] You can also choose to download the 2.2 firmware from Apple at this stage. If you do not, the script will download the firmware automatically.
+
+You can now copy the SDK and Firmware (if you have it) to the toolchain builder's directory:
+{{{
+cd ~/Projects/iphone/toolchain
+mkdir -p files/firmware
+mv /path/to/iphone_sdk_2.2_file files/
+mv /path/to/firmware2.2_file files/firmware
+}}}
+
+Now the environment is set up, you can start the script with:
+{{{
+chmod u+x toolchain.sh
+./toolchain.sh all
+}}}
+
+After all steps, the toolchain is in ./toolchain with the binaries in ./toolchain/pre/bin and the system in ./toolchain/sys/
+
+== Toolchain for firmware 2.1 (currently only 32Bit Linux) ==
+
+Support also exists for firmware 2.1. You can build it in much the same way as the instructions for 2.2 above, with the only variation being in the first command block:
+{{{
+mkdir -p ~/Projects/iphone/
+cd ~/Projects/iphone/toolchain
+svn checkout http://iphonedevonlinux.googlecode.com/svn/branches/2.1/ ./
+}}}
+
+_Note: If you are supplying your own ipsw, it must be for firmware 2.1. However it is okay to use iPhone SDK 2.2, which can be downloaded from here: [http://developer.apple.com/iphone/] as this still contains the required components.
+
+= Testing the Toolchain =
+In the subversion repository is a directory called "apps" which contains a test application you can build and deploy for the iPhone. Regardless of whether you built a 2.1 or 2.2 toolchain, the instructions for testing are the same. You will need an iPhone connected to your local network to do this.
+
+Navigate to the apps/HelloToolchain directory and run the following commands, noting that you must set "IP" to the address of your iPhone and change the path as appropriate:
+{{{
+cd ~/Projects/iphone/apps/HelloToolchain
+IP=xxx.xxx.xxx.xxx PATH=../../toolchain/pre/bin/:$PATH make deploy
+}}}
+
+After running the above commands successfully, your iPhone should respring and you should see a HelloToolchain icon on the home screen. Run it and it should display "HelloToolchain" on the screen on a white background. This should indicate that the toolchain has successfully compiled an application for your iPhone. Happy coding!
+
+= Manual Steps =
+The instructions above recommend building the toolchain using the command:
+{{{
+./toolchain.sh all
+}}}
+This command encompasses all stages of building the toolchain. If for any reason you need to repeat a part of the process or perform it in components, you may call the script in other ways. For example, the "all" action is equivalent to running:
+{{{
+./toolchain.sh headers
+./toolchain.sh firmware
+./toolchain.sh darwin_sources
+./toolchain.sh build
+./toolchain.sh clean
+}}}
+
+A brief overview of the available actions and what they do, is available by running:
+{{{
+./toolchain.sh usage
+}}}
