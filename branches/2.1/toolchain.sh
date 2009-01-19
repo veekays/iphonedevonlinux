@@ -601,7 +601,7 @@ toolchain_build() {
 	echo "Leopard"
 	cp -a "${LEOPARD_SDK_INC}" usr/include
 	cd usr/include
-	ln -s . System
+	ln -sf . System
 
 	cp -af "${IPHONE_SDK_INC}"/* .
 	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/osfmk/* .
@@ -628,11 +628,11 @@ toolchain_build() {
 	cp -a i386/disklabel.h arm
 	cp -a mach/i386/machine_types.defs mach/arm
 
-	mkdir Kernel
+	mkdir -p Kernel
 	echo "libsa"
 	cp -a "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/libsa/libsa Kernel
 
-	mkdir Security
+	mkdir -p Security
 	echo "libsecurity"
 	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_authorization-*/lib/*.h Security
 	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_cdsa_client-*/lib/*.h Security
@@ -646,7 +646,7 @@ toolchain_build() {
 	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_utilities-*/lib/*.h Security
 	cp -a "${DARWIN_SOURCES_DIR}"/libsecurityd-*/lib/*.h Security
 
-	mkdir DiskArbitration
+	mkdir -p DiskArbitration
 	echo "DiskArbitration"
 	cp -a "${DARWIN_SOURCES_DIR}"/DiskArbitration-*/DiskArbitration/*.h DiskArbitration
 
@@ -661,20 +661,21 @@ toolchain_build() {
 		mkdir -p IOKit/"${proj}"
 		cp -a "${DARWIN_SOURCES_DIR}"/IOKitUser-*/"${proj}".subproj/*.h IOKit/"${proj}"
 	done
-    
-	ln -s IOKit/kext/bootfiles.h .
 
 	mkdir -p IOKit/storage
 	cp -a "${DARWIN_SOURCES_DIR}"/IOStorageFamily-*/*.h IOKit/storage
 	cp -a "${DARWIN_SOURCES_DIR}"/IOCDStorageFamily-*/*.h IOKit/storage
 	cp -a "${DARWIN_SOURCES_DIR}"/IODVDStorageFamily-*/*.h IOKit/storage
 
-	mkdir SystemConfiguration
+	mkdir -p SystemConfiguration
 	echo "configd"
 	cp -a "${DARWIN_SOURCES_DIR}"/configd-*/SystemConfiguration.fproj/*.h SystemConfiguration
 
+	mkdir -p WebCore
+	cp -a  "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
+
 	echo "CoreFoundation"
-	mkdir CoreFoundation
+	mkdir -p CoreFoundation
 	cp -a "${LEOPARD_SDK_LIBS}"/CoreFoundation.framework/Versions/A/Headers/* CoreFoundation
 	cp -af "${DARWIN_SOURCES_DIR}"/CF-*/*.h CoreFoundation
 	cp -af "${IPHONE_SDK_LIBS}"/CoreFoundation.framework/Headers/* CoreFoundation
@@ -697,7 +698,7 @@ toolchain_build() {
 	done
 
 	echo "Application Services"
-	mkdir ApplicationServices
+	mkdir -p ApplicationServices
 	cp -a "${LEOPARD_SDK_LIBS}"/ApplicationServices.framework/Versions/A/Headers/* ApplicationServices
 	for service in "${LEOPARD_SDK_LIBS}"/ApplicationServices.framework/Versions/A/Frameworks/*.framework; do
 		echo -e "\t$(basename $service .framework)"
@@ -712,51 +713,24 @@ toolchain_build() {
 		mkdir -p "$(basename $service .framework)"
 		cp -a $service/Versions/A/Headers/* "$(basename $service .framework)"
 	done
-
-	mkdir WebCore
-	echo "WebCore"
-	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
-	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/bridge/mac/*.h WebCore 
-	for subdir in css dom editing history html loader page platform{,/graphics} rendering; do
-	    cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/"${subdir}"/*.h WebCore
-	done
-
-	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/css/CSSPropertyNames.in WebCore
-	(cd WebCore; perl "${DARWIN_SOURCES_DIR}"/WebCore-*/css/makeprop.pl)
-
-	mkdir kjs
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/kjs/*.h kjs
-
-	mkdir -p wtf/unicode/icu
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/*.h wtf
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/unicode/*.h wtf/unicode
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/unicode/icu/*.h wtf/unicode/icu
-
-	mkdir unicode
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/icu/unicode/*.h unicode
 	
 	cd "$TOOLCHAIN/sys"
 	ln -sf gcc/darwin/4.0/stdint.h usr/include
-	ln -s libstdc++.6.dylib usr/lib/libstdc++.dylib
+	ln -sf libstdc++.6.dylib usr/lib/libstdc++.dylib
     
 	message_status "Applying patches..."
 
-	if [ ! -r "${HERE}/include.diff" ]; then
-		error "Missing include.diff! This file is required to merge the OSX and iPhone SDKs."
-		exit 1
-	fi
 	# this step may have a bad hunk in CoreFoundation and thread_status while patching
 	# these errors are to be ignored, as these are changes for issues Apple has now fixed
 	# include.diff is a modified version the telesphoreo patches to support iPhone 2.2 SDK.
         pushd "usr/include"
+	svn cat http://svn.telesphoreo.org/trunk/tool/include.diff@495 | patch -p3 -N
 	patch -p3 -N < "${HERE}/include.diff"
-
-	svn cat  http://svn.telesphoreo.org/trunk/tool/patches/locks.h@226 > arm/locks.h
+	svn cat http://svn.telesphoreo.org/trunk/tool/patches/locks.h@226 > arm/locks.h
 
 	mkdir -p GraphicsServices
 	cd GraphicsServices
 	svn cat http://svn.telesphoreo.org/trunk/tool/patches/GraphicsServices.h@334 > GraphicsServices.h
-        
         popd
 
 	# Changed some of the below commands from sudo; don't know why they were like that
@@ -772,16 +746,20 @@ toolchain_build() {
 
 	if [ ! -d $GCC_DIR ]; then
 		message_status "Checking out saurik's llvm-gcc-4.2..."
-		mkdir -p "${GCC_DIR}"
+		git clone -n git://git.saurik.com/llvm-gcc-4.2 "${GCC_DIR}"
+		pushd "${GCC_DIR}" && git checkout d863b4829a25751554026dccd75d958050f36b69 && popd
+	else
 		pushd "${GCC_DIR}"
-		git clone -n git://git.saurik.com/llvm-gcc-4.2 .
-		git checkout d863b4829a25751554026dccd75d958050f36b69
+		if ! git checkout d863b4829a25751554026dccd75d958050f36b69; then
+			error "Failed to checkout saurik's llvm-gcc-4.2."
+			exit 1
+		fi
 		popd
 	fi
     
 	message_status "Checking out odcctools..."
 	mkdir -p "${CCTOOLS_DIR}"
-	svn co -r276 http://iphone-dev.googlecode.com/svn/branches/odcctools-9.2-ld "${CCTOOLS_DIR}"
+	svn checkout -r278 http://iphone-dev.googlecode.com/svn/branches/odcctools-9.2-ld "${CCTOOLS_DIR}"
 
 	message_status "Configuring cctools-iphone..."
 	mkdir -p "$TOOLCHAIN/pre"
@@ -796,6 +774,7 @@ toolchain_build() {
 	cecho bold "Build progress logged to: toolchain/bld/cctools-iphone/make.log"
 	if ! ( make &>make.log && make install &>install.log ); then
 		error "Build & install failed. Check make.log and install.log"
+		exit 1
 	fi
 
 	message_status "Configuring gcc-4.2-iphone..."
@@ -815,10 +794,11 @@ toolchain_build() {
 	cecho bold "Build progress logged to: toolchain/bld/gcc-4.2-iphone/make.log"
 	if ! ( make -j2 &>make.log && make install &>install.log ); then
 		error "Build & install failed. Check make.log and install.log"
+		exit 1
 	fi
 
 	mkdir -p "$TOOLCHAIN/sys"/"$(dirname $TOOLCHAIN/pre)"
-	ln -s "$TOOLCHAIN/pre" "$TOOLCHAIN/sys"/"$(dirname $TOOLCHAIN/pre)"
+	ln -sf "$TOOLCHAIN/pre" "$TOOLCHAIN/sys"/"$(dirname $TOOLCHAIN/pre)"
 }
 
 class_dump() {
@@ -950,11 +930,17 @@ case $1 in
 		message_action "Firmware extracted."
 		;;
 
-	build)
+	build|rebuild)
 		check_environment
 		message_action "Building the toolchain..."
+		# This is more of a debugging tool at the moment
+		if [ "$1" == "rebuild" ]; then
+			rm -Rf "${IPHONEDEV_DIR}/toolchain/pre/"
+			rm -Rf "${IPHONEDEV_DIR}/toolchain/sys/"
+			rm -Rf "${IPHONEDEV_DIR}/toolchain/bld/"
+		fi
 		toolchain_build
-		message_action "Toolchain built."
+		message_action "It seems like the toolchain built!"
 		;;
 	
 	classdump)
