@@ -161,6 +161,32 @@ message_action() {
 	cecho blue $*
 }
 
+# Platform independent mount command for the DMGs used in this script
+mount_dmg() {
+	if [ "`uname -s`" == "Darwin" ]; then
+		sudo hdiutil attach $1 --mountpoint $2
+	else
+		sudo mount -t hfsplus -o loop $1 $2
+	fi
+	if [ $? ]; then
+		error "Failed to mount `basename $1`."
+		exit 1
+	fi
+}
+
+# Platform independent umount command for the DMGs used in this script
+umount_dmg() {
+	if [ "`uname -s`" == "Darwin" ]; then
+		sudo hdiutil detach $MNT_DIR
+	else
+		sudo umount -fl $MNT_DIR
+	fi
+	if [ $? ]; then
+		error "Failed to unmount."
+		exit 1
+	fi
+}
+
 # Takes a plist string and does a very basic lookup of a particular key value,
 # given a key name and an XPath style path to the key in terms of dict entries
 plist_key() {
@@ -255,13 +281,10 @@ toolchain_extract_headers() {
 
     # Inform the user why we suddenly need their password
     message_status "Trying to mount the iPhone SDK img..."
-    echo "In order to extract `basename $IPHONE_SDK_IMG`, I am going to run:"
-    echo -e "\tsudo mount -o loop $IPHONE_SDK_IMG $MNT_DIR"
+    echo "In order to extract `basename $IPHONE_SDK_IMG`, I am going to mount it."
+    echo "This needs to be done as root."
     
-    if ! sudo mount -o loop $IPHONE_SDK_IMG $MNT_DIR ; then
-    	error "Failed to mount ${IPHONE_SDK_IMG} at ${MNT_DIR}!"
-    	exit 1
-    fi
+    mount_dmg $IPHONE_SDK_IMG $MNT_DIR
 
     # Check the version of the SDK
     SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9].[0-9]\).*$/\1/')
@@ -272,7 +295,7 @@ toolchain_extract_headers() {
     	error "SDK is ${SDK_VERSION}. Please download the latest SDK here:"
     	error "http://developer.apple.com/iphone/"
     	echo "Unmounting..."
-    	sudo umount -fl $MNT_DIR
+    	umount_dmg
     	exit 1
     fi
     
@@ -285,7 +308,7 @@ toolchain_extract_headers() {
     if [ ! -r ${MNT_DIR}/Packages/$PACKAGE ]; then
     	error "I tried to extract $PACKAGE but I couldn't find it!"
     	echo "Unmounting..."
-    	sudo umount -fl $MNT_DIR
+    	umount_dmg
     	exit 1
     fi
     
@@ -296,7 +319,8 @@ toolchain_extract_headers() {
     cp ${MNT_DIR}/Packages/$PACKAGE $TMP_DIR/iphone.pkg
     cd $TMP_DIR
     xar -xf iphone.pkg Payload
-    zcat Payload | cpio -id
+    # zcat on OSX needs .Z suffix
+    cat Payload | zcat | cpio -id
     
     # These folders are version named so the SDK version can be verified
     if [ ! -d Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS${TOOLCHAIN_VERSION}.sdk ]; then
@@ -314,13 +338,13 @@ toolchain_extract_headers() {
     cp ${MNT_DIR}/Packages/MacOSX10.5.pkg $TMP_DIR/macosx.pkg
     cd $TMP_DIR 
     xar -xf macosx.pkg Payload
-    zcat Payload | cpio -id
+    cat Payload | zcat | cpio -id
     mv -f SDKs/MacOSX10.5.sdk ${SDKS_DIR}
 
     rm -fR $TMP_DIR/*
 
     message_status "Unmounting iPhone SDK img..."
-    sudo umount -fl $MNT_DIR
+    umount_dmg
     message_status "Removing `basename $IPHONE_SDK_IMG`..."
     rm $IPHONE_SDK_IMG
 }
@@ -445,22 +469,19 @@ toolchain_extract_firmware() {
     fi
 
     message_status "Trying to mount `basename ${FW_SYSTEM_DMG}`..."
-    echo "I am about to mount a file using the command:"
-    echo -e "\tsudo mount -t hfsplus -o loop \"${FW_SYSTEM_DMG}\" \"${MNT_DIR}\""
+    echo "In order to extract `basename ${FW_SYSTEM_DMG}`, I am going to mount it."
+    echo "This needs to be done as root."
     
-    if ! sudo mount -t hfsplus -o loop "${FW_SYSTEM_DMG}" "${MNT_DIR}" ; then
-    	error "Failed to mount $(basename "${FW_SYSTEM_DMG}")."
-    	exit 1
-    fi
+    mount_dmg "${FW_SYSTEM_DMG}" "${MNT_DIR}"
     
     cd "${MNT_DIR}"
     message_status "Copying required components of the firmware..."
-    sudo cp -Ra * "${FW_VERSION_DIR}"
-    sudo chown -R `id --user`:`id --group` $FW_VERSION_DIR
+    sudo cp -Rp * "${FW_VERSION_DIR}"
+    sudo chown -R `id -u`:`id -g` $FW_VERSION_DIR
     message_status "Unmounting..."
 
     cd "${HERE}"
-    sudo umount -fl "${MNT_DIR}"
+    umount_dmg
     
     if [ -s "${FW_DIR}/current" ] ; then
         rm "${FW_DIR}/current";
@@ -584,165 +605,165 @@ toolchain_build() {
 			message_status "Copying required iPhone filesystem components..."
 			# I have tried to avoid copying the permissions (not using -a) because they
 			# get in the way later down the track. This might be wrong but it seems okay.
-			cp -rdH ${FW_DIR}/current/* "$TOOLCHAIN/sys"
+			cp -Rp ${FW_DIR}/current/* "$TOOLCHAIN/sys"
 			rm -rf usr/include
 		fi
 	else
 		message_status "Copying required iPhone filesystem components..."
-		cp -rdH ${FW_DIR}/current/* "$TOOLCHAIN/sys" # As above
+		cp -Rp ${FW_DIR}/current/* "$TOOLCHAIN/sys" # As above
 		rm -rf usr/include
 	fi
 
 	# Presently working here and below
 	message_status "Copying SDK headers..."
 	echo "Leopard"
-	cp -a "${LEOPARD_SDK_INC}" usr/include
+	cp -Rp "${LEOPARD_SDK_INC}" usr/include
 	cd usr/include
 	ln -sf . System
 
-	cp -af "${IPHONE_SDK_INC}"/* .
-	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.7.58/osfmk/* .
-	cp -af "${DARWIN_SOURCES_DIR}"/xnu-1228.7.58/bsd/* . 
+	cp -Rpf "${IPHONE_SDK_INC}"/* .
+	cp -Rpf "${DARWIN_SOURCES_DIR}"/xnu-1228.7.58/osfmk/* .
+	cp -Rpf "${DARWIN_SOURCES_DIR}"/xnu-1228.7.58/bsd/* . 
 
 	echo "mach"
-	cp -af "${DARWIN_SOURCES_DIR}"/cctools-*/include/mach .
-	cp -af "${DARWIN_SOURCES_DIR}"/cctools-*/include/mach-o .
-	cp -af "${IPHONE_SDK_INC}"/mach-o/dyld.h mach-o
+	cp -Rpf "${DARWIN_SOURCES_DIR}"/cctools-*/include/mach .
+	cp -Rpf "${DARWIN_SOURCES_DIR}"/cctools-*/include/mach-o .
+	cp -Rpf "${IPHONE_SDK_INC}"/mach-o/dyld.h mach-o
 
-	cp -af "${LEOPARD_SDK_INC}"/mach/machine mach
-	cp -af "${LEOPARD_SDK_INC}"/mach/machine.h mach
-	cp -af "${LEOPARD_SDK_INC}"/machine .
-	cp -af "${IPHONE_SDK_INC}"/machine .
+	cp -Rpf "${LEOPARD_SDK_INC}"/mach/machine mach
+	cp -Rpf "${LEOPARD_SDK_INC}"/mach/machine.h mach
+	cp -Rpf "${LEOPARD_SDK_INC}"/machine .
+	cp -Rpf "${IPHONE_SDK_INC}"/machine .
 
-	cp -af "${IPHONE_SDK_INC}"/sys/cdefs.h sys
-	cp -af "${LEOPARD_SDK_INC}"/sys/dtrace.h sys
+	cp -Rpf "${IPHONE_SDK_INC}"/sys/cdefs.h sys
+	cp -Rpf "${LEOPARD_SDK_INC}"/sys/dtrace.h sys
 
-	cp -af "${LEOPARD_SDK_LIBS}"/Kernel.framework/Versions/A/Headers/machine/disklabel.h machine
-	cp -af "${DARWIN_SOURCES_DIR}"/configd-*/dnsinfo/dnsinfo.h .
-	cp -a "${DARWIN_SOURCES_DIR}"/Libc-*/include/kvm.h .
-	cp -a "${DARWIN_SOURCES_DIR}"/launchd-*/launchd/src/*.h .
+	cp -Rpf "${LEOPARD_SDK_LIBS}"/Kernel.framework/Versions/A/Headers/machine/disklabel.h machine
+	cp -Rpf "${DARWIN_SOURCES_DIR}"/configd-*/dnsinfo/dnsinfo.h .
+	cp -Rp "${DARWIN_SOURCES_DIR}"/Libc-*/include/kvm.h .
+	cp -Rp "${DARWIN_SOURCES_DIR}"/launchd-*/launchd/src/*.h .
 
-	cp -a i386/disklabel.h arm
-	cp -a mach/i386/machine_types.defs mach/arm
+	cp -Rp i386/disklabel.h arm
+	cp -Rp mach/i386/machine_types.defs mach/arm
 
 	mkdir -p Kernel
 	echo "libsa"
-	cp -a "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/libsa/libsa Kernel
+	cp -Rp "${DARWIN_SOURCES_DIR}"/xnu-1228.3.13/libsa/libsa Kernel
 
 	mkdir -p Security
 	echo "libsecurity"
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_authorization-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_cdsa_client-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_cdsa_utilities-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_cms-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_codesigning-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_cssm-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_keychain-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_mds-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_ssl-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurity_utilities-*/lib/*.h Security
-	cp -a "${DARWIN_SOURCES_DIR}"/libsecurityd-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_authorization-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_cdsa_client-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_cdsa_utilities-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_cms-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_codesigning-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_cssm-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_keychain-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_mds-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_ssl-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurity_utilities-*/lib/*.h Security
+	cp -Rp "${DARWIN_SOURCES_DIR}"/libsecurityd-*/lib/*.h Security
 
 	mkdir -p DiskArbitration
 	echo "DiskArbitration"
-	cp -a "${DARWIN_SOURCES_DIR}"/DiskArbitration-*/DiskArbitration/*.h DiskArbitration
+	cp -Rp "${DARWIN_SOURCES_DIR}"/DiskArbitration-*/DiskArbitration/*.h DiskArbitration
 
 	echo "iokit"
-	cp -a "${DARWIN_SOURCES_DIR}"/xnu-*/iokit/IOKit .
-	cp -a "${DARWIN_SOURCES_DIR}"/IOKitUser-*/*.h IOKit
+	cp -Rp "${DARWIN_SOURCES_DIR}"/xnu-*/iokit/IOKit .
+	cp -Rp "${DARWIN_SOURCES_DIR}"/IOKitUser-*/*.h IOKit
 
-	cp -a "${DARWIN_SOURCES_DIR}"/IOGraphics-*/IOGraphicsFamily/IOKit/graphics IOKit
-	cp -a "${DARWIN_SOURCES_DIR}"/IOHIDFamily-*/IOHIDSystem/IOKit/hidsystem IOKit
+	cp -Rp "${DARWIN_SOURCES_DIR}"/IOGraphics-*/IOGraphicsFamily/IOKit/graphics IOKit
+	cp -Rp "${DARWIN_SOURCES_DIR}"/IOHIDFamily-*/IOHIDSystem/IOKit/hidsystem IOKit
 
 	for proj in kext ps pwr_mgt; do
 		mkdir -p IOKit/"${proj}"
-		cp -a "${DARWIN_SOURCES_DIR}"/IOKitUser-*/"${proj}".subproj/*.h IOKit/"${proj}"
+		cp -Rp "${DARWIN_SOURCES_DIR}"/IOKitUser-*/"${proj}".subproj/*.h IOKit/"${proj}"
 	done
     
 	ln -s IOKit/kext/bootfiles.h .
 
 	mkdir -p IOKit/storage
-	cp -a "${DARWIN_SOURCES_DIR}"/IOStorageFamily-*/*.h IOKit/storage
-	cp -a "${DARWIN_SOURCES_DIR}"/IOCDStorageFamily-*/*.h IOKit/storage
-	cp -a "${DARWIN_SOURCES_DIR}"/IODVDStorageFamily-*/*.h IOKit/storage
+	cp -Rp "${DARWIN_SOURCES_DIR}"/IOStorageFamily-*/*.h IOKit/storage
+	cp -Rp "${DARWIN_SOURCES_DIR}"/IOCDStorageFamily-*/*.h IOKit/storage
+	cp -Rp "${DARWIN_SOURCES_DIR}"/IODVDStorageFamily-*/*.h IOKit/storage
 
 	mkdir DirectoryService
-	cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/APIFramework/*.h DirectoryService
+	cp -Rp "${DARWIN_SOURCES_DIR}"/DirectoryService-*/APIFramework/*.h DirectoryService
 
 	mkdir DirectoryServiceCore
-	cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Private/*.h DirectoryServiceCore
-	cp -a "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Public/*.h DirectoryServiceCore 
+	cp -Rp "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Private/*.h DirectoryServiceCore
+	cp -Rp "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Public/*.h DirectoryServiceCore 
 
 	mkdir -p SystemConfiguration
 	echo "configd"
-	cp -a "${DARWIN_SOURCES_DIR}"/configd-*/SystemConfiguration.fproj/*.h SystemConfiguration
+	cp -Rp "${DARWIN_SOURCES_DIR}"/configd-*/SystemConfiguration.fproj/*.h SystemConfiguration
 
 	mkdir -p WebCore
-	cp -a  "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
+	cp -Rp  "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
 
 	echo "CoreFoundation"
 	mkdir CoreFoundation
-	cp -a "${LEOPARD_SDK_LIBS}"/CoreFoundation.framework/Versions/A/Headers/* CoreFoundation
-	cp -af "${DARWIN_SOURCES_DIR}"/CF-*/*.h CoreFoundation
-	cp -af "${IPHONE_SDK_LIBS}"/CoreFoundation.framework/Headers/* CoreFoundation
+	cp -Rp "${LEOPARD_SDK_LIBS}"/CoreFoundation.framework/Versions/A/Headers/* CoreFoundation
+	cp -Rpf "${DARWIN_SOURCES_DIR}"/CF-*/*.h CoreFoundation
+	cp -Rpf "${IPHONE_SDK_LIBS}"/CoreFoundation.framework/Headers/* CoreFoundation
 
 	for framework in AudioToolbox AudioUnit CoreAudio QuartzCore Foundation; do
 		echo $framework
 		mkdir -p $framework
-		cp -a "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* "${framework}"
-		cp -af "${IPHONE_SDK_LIBS}"/"${framework}".framework/Headers/* "${framework}"
+		cp -Rp "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* "${framework}"
+		cp -Rpf "${IPHONE_SDK_LIBS}"/"${framework}".framework/Headers/* "${framework}"
 	done
 
 	# UIKit fix (these are only the public framework headers)
 	mkdir -p UIKit
-	cp -a "${IPHONE_SDK_LIBS}"/UIKit.framework/Headers/* UIKit 
+	cp -Rp "${IPHONE_SDK_LIBS}"/UIKit.framework/Headers/* UIKit 
 
 	for framework in AppKit Cocoa CoreData CoreVideo JavaScriptCore OpenGL WebKit; do
 		echo $framework
 		mkdir -p $framework
-		cp -a "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* $framework
+		cp -Rp "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* $framework
 	done
 	
 	mkdir AddressBook
-	cp -aH "${IPHONE_SDK_LIBS}"/AddressBook.framework/Headers/* AddressBook
+	cp -RpH "${IPHONE_SDK_LIBS}"/AddressBook.framework/Headers/* AddressBook
 
 	echo "Application Services"
 	mkdir -p ApplicationServices
-	cp -a "${LEOPARD_SDK_LIBS}"/ApplicationServices.framework/Versions/A/Headers/* ApplicationServices
+	cp -Rp "${LEOPARD_SDK_LIBS}"/ApplicationServices.framework/Versions/A/Headers/* ApplicationServices
 	for service in "${LEOPARD_SDK_LIBS}"/ApplicationServices.framework/Versions/A/Frameworks/*.framework; do
 		echo -e "\t$(basename $service .framework)"
 		mkdir -p "$(basename $service .framework)"
-		cp -a $service/Versions/A/Headers/* "$(basename $service .framework)"
+		cp -Rp $service/Versions/A/Headers/* "$(basename $service .framework)"
 	done
 
 	echo "Core Services"
 	mkdir -p CoreServices
-	cp -a "${LEOPARD_SDK_LIBS}"/CoreServices.framework/Versions/A/Headers/* CoreServices
+	cp -Rp "${LEOPARD_SDK_LIBS}"/CoreServices.framework/Versions/A/Headers/* CoreServices
 	for service in "${LEOPARD_SDK_LIBS}"/CoreServices.framework/Versions/A/Frameworks/*.framework; do
 		mkdir -p "$(basename $service .framework)"
-		cp -a $service/Versions/A/Headers/* "$(basename $service .framework)"
+		cp -Rp $service/Versions/A/Headers/* "$(basename $service .framework)"
 	done
 	mkdir WebCore
 	echo "WebCore"
-	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
-	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/bridge/mac/*.h WebCore 
+	cp -Rp "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
+	cp -Rp "${DARWIN_SOURCES_DIR}"/WebCore-*/bridge/mac/*.h WebCore 
 	for subdir in css dom editing history html loader page platform{,/{graphics,text}} rendering; do
-	    cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/"${subdir}"/*.h WebCore
+	    cp -Rp "${DARWIN_SOURCES_DIR}"/WebCore-*/"${subdir}"/*.h WebCore
 	done
 
-	cp -a "${DARWIN_SOURCES_DIR}"/WebCore-*/css/CSSPropertyNames.in WebCore
+	cp -Rp "${DARWIN_SOURCES_DIR}"/WebCore-*/css/CSSPropertyNames.in WebCore
 	(cd WebCore; perl "${DARWIN_SOURCES_DIR}"/WebCore-*/css/makeprop.pl)
 
 	mkdir kjs
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/kjs/*.h kjs
+	cp -Rp "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/kjs/*.h kjs
 
 	mkdir -p wtf/unicode/icu
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/*.h wtf
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/unicode/*.h wtf/unicode
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/unicode/icu/*.h wtf/unicode/icu
+	cp -Rp "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/*.h wtf
+	cp -Rp "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/unicode/*.h wtf/unicode
+	cp -Rp "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/wtf/unicode/icu/*.h wtf/unicode/icu
 
 	mkdir unicode
-	cp -a "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/icu/unicode/*.h unicode
+	cp -Rp "${DARWIN_SOURCES_DIR}"/JavaScriptCore-*/icu/unicode/*.h unicode
 	
 	cd "$TOOLCHAIN/sys"
 	ln -sf gcc/darwin/4.0/stdint.h usr/include
@@ -768,11 +789,11 @@ toolchain_build() {
 	mkdir -p "${CSU_DIR}"
 	cd "${CSU_DIR}"
 	svn co -r 280 http://iphone-dev.googlecode.com/svn/trunk/csu .
-	cp -a *.o "$TOOLCHAIN/sys/usr/lib"
+	cp -Rp *.o "$TOOLCHAIN/sys/usr/lib"
 	cd "$TOOLCHAIN/sys/usr/lib"
 	chmod 644 *.o
-	cp -af crt1.o crt1.10.5.o
-	cp -af dylib1.o dylib1.10.5.o
+	cp -Rpf crt1.o crt1.10.5.o
+	cp -Rpf dylib1.o dylib1.10.5.o
 
 	if [ ! -d $GCC_DIR ]; then
 		message_status "Checking out saurik's llvm-gcc-4.2..."
