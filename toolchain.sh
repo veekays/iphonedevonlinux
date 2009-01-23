@@ -195,6 +195,8 @@ umount_dmg() {
 	if [ "`uname -s`" == "Darwin" ]; then
 		sudo hdiutil detach $MNT_DIR
 	else
+		# shouldn't we have a DEBUG var and only
+		# delete the TMP_IMG if DEBUG is not set/true
 		sudo umount -fl $MNT_DIR
 		[ -r $TMP_IMG ] && rm -f $TMP_IMG
 	fi
@@ -229,24 +231,24 @@ plist_key() {
 build_tools() {
 	([ -x ${TOOLS_DIR}/dmg2img ] && [ -x ${TOOLS_DIR}/vfdecrypt ]) && return
 
-    mkdir -p $TOOLS_DIR
-    mkdir -p $TMP_DIR
+	mkdir -p $TOOLS_DIR
+	mkdir -p $TMP_DIR
 
-    message_status "Retrieving and building dmg2img 1.3..."
+	message_status "Retrieving and building dmg2img 1.3..."
 
-    cd $TMP_DIR
-    if ! wget -O - $DMG2IMG | tar -zx; then
-    	error "Failed to get and extract dmg2img-1.3. Check errors."
-    	exit 1
-    fi
+	cd $TMP_DIR
+	if ! wget -O - $DMG2IMG | tar -zx; then
+		error "Failed to get and extract dmg2img-1.3. Check errors."
+		exit 1
+	fi
     
-    pushd dmg2img-1.3
+	pushd dmg2img-1.3
     
-    if ! make; then
-    	error "Failed to make dmg2img-1.3."
-    	error "Make sure you have libbz2 and libssl available on your system."
-    	exit 1
-    fi
+	if ! make; then
+		error "Failed to make dmg2img-1.3."
+		error "Make sure you have libbz2 and libssl available on your system."
+		exit 1
+	fi
     
     mv vfdecrypt dmg2img $TOOLS_DIR
     popd
@@ -347,8 +349,6 @@ toolchain_extract_headers() {
 
     message_status "Unmounting iPhone SDK img..."
     umount_dmg
-    message_status "Removing `basename $IPHONE_SDK_IMG`..."
-    rm $IPHONE_SDK_IMG
 }
 
 toolchain_extract_firmware() {
@@ -444,8 +444,9 @@ toolchain_extract_firmware() {
 
     cd "${MNT_DIR}"
     message_status "Copying required components of the firmware..."
+
     sudo cp -R -p * "${FW_VERSION_DIR}"
-	mkdir -p "${FW_VERSION_DIR}"
+    mkdir -p "${FW_VERSION_DIR}"
     sudo chown -R `id -u`:`id -g` $FW_VERSION_DIR
     message_status "Unmounting..."
 
