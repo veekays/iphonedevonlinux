@@ -198,12 +198,13 @@ umount_dmg() {
 		# shouldn't we have a DEBUG var and only
 		# delete the TMP_IMG if DEBUG is not set/true
 		sudo umount -fl $MNT_DIR
-		[ -r $TMP_IMG ] && rm -f $TMP_IMG
 	fi
 	if [ ! $? == 0 ]; then
 		error "Failed to unmount."
 		exit 1
 	fi
+	[ -r $TMP_IMG ] && rm -f $TMP_IMG
+
 }
 
 # Takes a plist string and does a very basic lookup of a particular key value,
@@ -348,6 +349,7 @@ toolchain_extract_headers() {
     rm -fR $TMP_DIR/*
 
     message_status "Unmounting iPhone SDK img..."
+    cd $HERE
     umount_dmg
 }
 
@@ -445,8 +447,8 @@ toolchain_extract_firmware() {
     cd "${MNT_DIR}"
     message_status "Copying required components of the firmware..."
 
-    sudo cp -R -p * "${FW_VERSION_DIR}"
     mkdir -p "${FW_VERSION_DIR}"
+    sudo cp -R -p * "${FW_VERSION_DIR}"
     sudo chown -R `id -u`:`id -g` $FW_VERSION_DIR
     message_status "Unmounting..."
 
@@ -677,7 +679,7 @@ toolchain_build() {
 	for framework in AudioToolbox AudioUnit CoreAudio QuartzCore Foundation; do
 		echo $framework
 		mkdir -p $framework
-		cp -R -p "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* "${framework}"
+		cp -R -p "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/?/Headers/* "${framework}"
 		cp -R -pf "${IPHONE_SDK_LIBS}"/"${framework}".framework/Headers/* "${framework}"
 	done
 
@@ -688,7 +690,7 @@ toolchain_build() {
 	for framework in AppKit Cocoa CoreData CoreVideo JavaScriptCore OpenGL WebKit; do
 		echo $framework
 		mkdir -p $framework
-		cp -R -p "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/*/Headers/* $framework
+		cp -R -p "${LEOPARD_SDK_LIBS}"/"${framework}".framework/Versions/?/Headers/* $framework
 	done
 	
 	mkdir AddressBook
