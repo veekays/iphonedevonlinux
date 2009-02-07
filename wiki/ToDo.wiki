@@ -6,14 +6,13 @@
 	* Support for building older toolchains (2.0?) and future proofing.
 	* Check all possible failure points to introduce graceful failure
 	* Support for MIG
-	* Complete documentation
 	* Perhaps this will need to support automation through predefined variables and a "-f" parameter or something.
 	* Support for defining some parameters externally (document these):
 		* APPLE_ID
 		* APPLE_PASSWORD
 		* FW_FILE
 	* Prevent users running steps in the wrong order. Checks for the presence of the required resources.
-	* Implement propper, version specific, class-dump support
+	* Implement proper, functional, version specific, class-dump support
 	* Port to leopard
 	* Fix up 4-spaces instead of tabs
 	* Testing
