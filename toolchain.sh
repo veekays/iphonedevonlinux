@@ -162,7 +162,7 @@ message_action() {
 
 # Platform independent mount command for the DMGs used in this script
 mount_dmg() {
-	# Key provided, we need to decrypt the DMG firstß
+	# Key provided, we need to decrypt the DMG first
 	if [ ! -z $3 ]; then
 		message_status "Decrypting `basename $1`..."
 		TMP_DECRYPTED=${TMP_DIR}/`basename $1`.decrypted
@@ -175,13 +175,15 @@ mount_dmg() {
 		local DMG="$1"
 	fi
 	if [ "`uname -s`" == "Darwin" ]; then
-		echo "In order to extract `basename $1`, I am going to mount it. This needs to be done as root."
+		echo "In order to extract `basename $1`, I am going to mount it."
+		echo "This needs to be done as root."
 		sudo hdiutil attach -mountpoint $2 $DMG
 	else
 		# Convert the DMG to an IMG for mounting
 		TMP_IMG=${TMP_DIR}/`basename $DMG .dmg`.img
 		${TOOLS_DIR}/dmg2img -v -i $DMG -o $TMP_IMG
-		echo "In order to extract `basename $1`, I am going to mount it. This needs to be done as root."
+		echo "In order to extract `basename $1`, I am going to mount it."
+		echo "This needs to be done as root."
 		sudo mount -o loop $TMP_IMG $2
 	fi
 	if [ ! $? == 0 ]; then
@@ -259,7 +261,7 @@ build_tools() {
 }
 
 toolchain_extract_headers() {
-	build_tools
+    build_tools
     mkdir -p ${MNT_DIR} ${SDKS_DIR} ${TMP_DIR}
     
     # Make sure we don't already have these
@@ -269,7 +271,7 @@ toolchain_extract_headers() {
     fi
 
     # Look for the DMG and ask the user if is isn't findable.
-    if [ ! -r $IPHONE_SDK_DMG ] ; then
+    if ! [ -r $IPHONE_SDK_DMG ] ; then
     	echo "I'm having trouble finding the iPhone SDK. I looked here:"
     	echo $IPHONE_SDK_DMG
     	if ! confirm "Do you have the SDK?"; then
@@ -292,7 +294,16 @@ toolchain_extract_headers() {
     mount_dmg $IPHONE_SDK_DMG $MNT_DIR
 
     # Check the version of the SDK
-    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9].[0-9]\).*$/\1/')
+    # Apple seems to apply a policy of rounding off the last component of the long version number
+    # so we'll do the same here
+    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | awk '
+    	BEGIN { FS="." }
+   	{
+    		if(substr($4,1,1) >= 5)
+    			$3++
+    		if($3 > 0)	printf "%s.%s.%s", $1, $2, $3
+    		else		printf "%s.%s", $1, $2
+    	}')
     echo "SDK is version ${SDK_VERSION}"
     
     if [ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "older" ]; then
@@ -407,7 +418,7 @@ toolchain_extract_firmware() {
     FW_BUILD_VERSION=$(plist_key ProductBuildVersion "/" "${TMP_DIR}/Restore.plist")
     FW_RESTORE_RAMDISK=$(plist_key User "/RestoreRamDisks/" "${TMP_DIR}/Restore.plist")
     FW_RESTORE_SYSTEMDISK=$(plist_key User "/SystemRestoreImages/" "${TMP_DIR}/Restore.plist")
-	FW_VERSION_DIR="${FW_DIR}/${FW_PRODUCT_VERSION}_${FW_BUILD_VERSION}"
+    FW_VERSION_DIR="${FW_DIR}/${FW_PRODUCT_VERSION}_${FW_BUILD_VERSION}"
     
     cecho bold "Firmware Details"
     echo "Device Class: ${FW_DEVICE_CLASS}"
@@ -770,7 +781,7 @@ toolchain_build() {
 		pushd "${GCC_DIR}" && git checkout b3dd8400196ccb63fbf10fe036f9f8725b2f0a39 && popd
 	else
 		pushd "${GCC_DIR}"
-		if ! git checkout b3dd8400196ccb63fbf10fe036f9f8725b2f0a39; then
+		if ! git pull git://git.saurik.com/llvm-gcc-4.2 || ! git checkout b3dd8400196ccb63fbf10fe036f9f8725b2f0a39; then
 			error "Failed to checkout saurik's llvm-gcc-4.2."
 			exit 1
 		fi
@@ -915,7 +926,7 @@ check_environment() {
 	# Performs a check for objective-c extensions to gcc
 	if [ ! -z "`LANG=C gcc --help=objc 2>&1 | grep \"warning: unrecognized argument to --help\"`" ]; then
 		error "GCC does not appear to support Objective-C."
-		error "You may need to install support."
+		error "You may need to install support, for example the \"gobjc\" package in debian."
 		exit
 	fi
 	
