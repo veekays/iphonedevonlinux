@@ -1,0 +1,51 @@
+*** dmg2img.c	2008-09-20 06:42:43.000000000 +1000
+--- dmg2img.c	2009-02-09 19:05:01.000000000 +1100
+***************
+*** 296,304 ****
+                         }
+                         fwrite(tmp, 1, chunk, FOUT);//copy
+                         to_read -= chunk; 
+-                        percent = 100.0*(double)(in_size-to_read)/(double)in_size;
+-                        percentage();
+  		    }
+   	            if (verbose>=3)
+   	               printf("copy data  (in_addr=%u in_size=%u out_size=%u)\n", in_offs, in_size, out_size);
+                 }
+--- 296,304 ----
+                         }
+                         fwrite(tmp, 1, chunk, FOUT);//copy
+                         to_read -= chunk; 
+  		    }
++ 		    percent = 100.0*(double)in_offs/(double)addr;
++ 		    percentage();
+   	            if (verbose>=3)
+   	               printf("copy data  (in_addr=%u in_size=%u out_size=%u)\n", in_offs, in_size, out_size);
+                 }
+***************
+*** 350,363 ****
+      fclose(FIN);
+      fclose(FOUT);
+  
+- #if defined(__linux__)
+-     if (verbose) {
+-         printf("\n\
+- Linux users should be able to mount the archive [as root] by :\n\n\
+- modprobe hfsplus\n\
+- mount -t hfsplus -o loop %s /mnt\n\n", output_file);
+-     }
+- #endif
+- 
+      return 0;
+  }
+--- 350,354 ----
+--- Makefile	2008-09-18 06:48:02.000000000 +1000
++++ Makefile	2009-02-09 19:34:07.000000000 +1100
+@@ -1,7 +1,7 @@
+ BIN_DIR = /usr/bin
+ CC = gcc
+ ##CFLAGS = -O3
+-CFLAGS = -O2 -Wall
++CFLAGS = -O2 -w
+ 
+ all: dmg2img vfdecrypt
+ 

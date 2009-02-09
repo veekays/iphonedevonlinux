@@ -25,7 +25,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 # What version of the toolchain are we building?
-TOOLCHAIN_VERSION="2.2.1"
+TOOLCHAIN_VERSION="2.2"
 
 # Everything is built relative to IPHONEDEV_DIR
 IPHONEDEV_DIR="`pwd`"
@@ -87,15 +87,16 @@ MIG_DIR="${TOOLS_DIR}/mig"
 TMP_DIR="${IPHONEDEV_DIR}/tmp"
 MNT_DIR="${FILES_DIR}/mnt"
 FW_DIR="${FILES_DIR}/firmware"
+DARWIN_SOURCES_DIR="$FILES_DIR/darwin_sources"
 
 IPHONE_SDK="iphone_sdk_for_iphone_os_*_final.dmg"
 [ -z $IPHONE_SDK_DMG ] && IPHONE_SDK_DMG="${FILES_DIR}/${IPHONE_SDK}"
 
 # URLS
-DMG2IMG="http://vu1tur.eu.org/tools/download.pl?dmg2img-1.3.tar.gz"
 IPHONEWIKI_KEY_URL="http://www.theiphonewiki.com/wiki/index.php?title=VFDecrypt_Keys"
 AID_LOGIN="https://daw.apple.com/cgi-bin/WebObjects/DSAuthWeb.woa/wa/login?appIdKey=D236F0C410E985A7BB866A960326865E7F924EB042FA9A161F6A628F0291F620&path=/darwinsource/tarballs/apsl/cctools-667.8.0.tar.gz"
-DARWIN_SOURCES_DIR="$FILES_DIR/darwin_sources"
+DMG2IMG="http://vu1tur.eu.org/tools/download.pl?dmg2img-1.3.tar.gz"
+GCC_GIT="git://git.saurik.com/llvm-gcc-4.2/"
 
 NEEDED_COMMANDS="git gcc make sudo mount xar cpio zcat tar wget unzip gawk bison flex"
 
@@ -104,8 +105,8 @@ HERE=`pwd`
 # Compare two version strings and return a string indicating whether the first version number
 # is newer, older or equal to the second. This is quite dumb, but it works.
 vercmp() {
-	V1=`echo "$1" | sed -e 's/[^0-9]//g' | LANG=C awk '{ printf "%0.10f", "0."$0 }'`
-	V2=`echo "$2" | sed -e 's/[^0-9]//g' | LANG=C awk '{ printf "%0.10f", "0."$0 }'`
+	V1=`echo "$1" | LANG=C awk 'BEGIN { FS="." } { printf "%0.10f", "0." $1 $2 }'`
+	V2=`echo "$2" | LANG=C awk 'BEGIN { FS="." } { printf "%0.10f", "0." $1 $2 }'`
 	[[ $V1 > $V2 ]] && echo "newer"
 	[[ $V1 == $V2 ]] && echo "equal"
 	[[ $V1 < $V2 ]] && echo "older"
@@ -246,7 +247,9 @@ build_tools() {
 	fi
     
 	pushd dmg2img-1.3
-    
+    	
+    	patch -N < $HERE/dmg2img.diff
+    	
 	if ! make; then
 		error "Failed to make dmg2img-1.3."
 		error "Make sure you have libbz2 and libssl available on your system."
@@ -294,16 +297,7 @@ toolchain_extract_headers() {
     mount_dmg $IPHONE_SDK_DMG $MNT_DIR
 
     # Check the version of the SDK
-    # Apple seems to apply a policy of rounding off the last component of the long version number
-    # so we'll do the same here
-    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | awk '
-    	BEGIN { FS="." }
-   	{
-    		if(substr($4,1,1) >= 5)
-    			$3++
-    		if($3 > 0)	printf "%s.%s.%s", $1, $2, $3
-    		else		printf "%s.%s", $1, $2
-    	}')
+    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9]\).*$/\1/')
     echo "SDK is version ${SDK_VERSION}"
     
     if [ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "older" ]; then
@@ -777,11 +771,11 @@ toolchain_build() {
 
 	if [ ! -d $GCC_DIR ]; then
 		message_status "Checking out saurik's llvm-gcc-4.2..."
-		git clone -n git://git.saurik.com/llvm-gcc-4.2 "${GCC_DIR}"
+		git clone -n $GCC_GIT "${GCC_DIR}"
 		pushd "${GCC_DIR}" && git checkout b3dd8400196ccb63fbf10fe036f9f8725b2f0a39 && popd
 	else
 		pushd "${GCC_DIR}"
-		if ! git pull git://git.saurik.com/llvm-gcc-4.2 || ! git checkout b3dd8400196ccb63fbf10fe036f9f8725b2f0a39; then
+		if ! git pull $GCC_GIT || ! git checkout b3dd8400196ccb63fbf10fe036f9f8725b2f0a39; then
 			error "Failed to checkout saurik's llvm-gcc-4.2."
 			exit 1
 		fi
