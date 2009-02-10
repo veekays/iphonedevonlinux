@@ -95,10 +95,8 @@ IPHONE_SDK="iphone_sdk_for_iphone_os_*final.dmg"
 # URLS
 IPHONEWIKI_KEY_URL="http://www.theiphonewiki.com/wiki/index.php?title=VFDecrypt_Keys"
 AID_LOGIN="https://daw.apple.com/cgi-bin/WebObjects/DSAuthWeb.woa/wa/login?appIdKey=D236F0C410E985A7BB866A960326865E7F924EB042FA9A161F6A628F0291F620&path=/darwinsource/tarballs/apsl/cctools-667.8.0.tar.gz"
-#DMG2IMG="http://vu1tur.eu.org/tools/download.pl?dmg2img-1.3.tar.gz"
-#GCC_GIT="git://git.saurik.com/llvm-gcc-4.2/"
-DMG2IMG="http://localhost/dmg2img-1.3.tar.gz"
-GCC_GIT="/media/Data/iPhone/gcc/"
+DMG2IMG="http://vu1tur.eu.org/tools/download.pl?dmg2img-1.3.tar.gz"
+GCC_GIT="git://git.saurik.com/llvm-gcc-4.2/"
 
 NEEDED_COMMANDS="git gcc make sudo mount xar cpio zcat tar wget unzip gawk bison flex"
 
