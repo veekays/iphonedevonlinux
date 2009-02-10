@@ -95,8 +95,10 @@ IPHONE_SDK="iphone_sdk_for_iphone_os_*final.dmg"
 # URLS
 IPHONEWIKI_KEY_URL="http://www.theiphonewiki.com/wiki/index.php?title=VFDecrypt_Keys"
 AID_LOGIN="https://daw.apple.com/cgi-bin/WebObjects/DSAuthWeb.woa/wa/login?appIdKey=D236F0C410E985A7BB866A960326865E7F924EB042FA9A161F6A628F0291F620&path=/darwinsource/tarballs/apsl/cctools-667.8.0.tar.gz"
-DMG2IMG="http://vu1tur.eu.org/tools/download.pl?dmg2img-1.3.tar.gz"
-GCC_GIT="git://git.saurik.com/llvm-gcc-4.2/"
+#DMG2IMG="http://vu1tur.eu.org/tools/download.pl?dmg2img-1.3.tar.gz"
+#GCC_GIT="git://git.saurik.com/llvm-gcc-4.2/"
+DMG2IMG="http://localhost/dmg2img-1.3.tar.gz"
+GCC_GIT="/media/Data/iPhone/gcc/"
 
 NEEDED_COMMANDS="git gcc make sudo mount xar cpio zcat tar wget unzip gawk bison flex"
 
@@ -191,6 +193,7 @@ mount_dmg() {
 		error "Failed to mount `basename $1`."
 		exit 1
 	fi
+	trap "umount_dmg" SIGINT SIGTERM
 }
 
 # Platform independent umount command for the DMGs used in this script
@@ -207,7 +210,7 @@ umount_dmg() {
 		exit 1
 	fi
 	[ -r $TMP_IMG ] && rm -f $TMP_IMG
-
+	trap "" SIGINT SIGTERM
 }
 
 # Takes a plist string and does a very basic lookup of a particular key value,
@@ -297,7 +300,7 @@ toolchain_extract_headers() {
     mount_dmg $IPHONE_SDK_DMG $MNT_DIR
 
     # Check the version of the SDK
-    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9].[0-9]\).*$/\1/')
+    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9]\).*$/\1/')
     echo "SDK is version ${SDK_VERSION}"
     
     if [ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "older" ]; then
@@ -309,9 +312,8 @@ toolchain_extract_headers() {
     	exit 1
     fi
     
-    if [[ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "newer" ]]; then
-    	PACKAGE="iPhoneSDK`echo $TOOLCHAIN_VERSION | sed 's/^\([0-9]\).\([0-9]\).*$/\1_\2/' `.pkg"
-    else
+    PACKAGE="iPhoneSDK`echo $TOOLCHAIN_VERSION | sed 's/^\([0-9]\).\([0-9]\).*$/\1_\2/' `.pkg"
+    if [ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "equal" ] && [ ! -r ${MNT_DIR}/Packages/$PACKAGE ]; then
     	PACKAGE="iPhoneSDKHeadersAndLibs.pkg"
     fi
 
@@ -336,6 +338,7 @@ toolchain_extract_headers() {
     if [ ! -d Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS${TOOLCHAIN_VERSION}.sdk ]; then
     	error "I couldn't find the folder iPhoneOS${TOOLCHAIN_VERSION}.sdk. Perhaps this is"
     	error "not the right SDK dmg for toolchain ${TOOLCHAIN_VERSION}."
+    	umount_dmg
     	exit 1
     fi
     
@@ -897,6 +900,13 @@ check_environment() {
 	message_action "Preparing the environment"
 	cecho bold "Toolchain version: ${TOOLCHAIN_VERSION}"
 	cecho bold "Building in: ${IPHONEDEV_DIR}"
+	
+	if [ -z "`echo $TOOLCHAIN_VERSION | awk '/^[0-9]\.[0-9]$/ { print }'`" ]; then
+		error "Toolchain builder only supports two-component version numbers. Please"
+		error "set TOOLCHAIN_VERSION appropriately. (Ex: 2.2.1 is invalid, use 2.2)"
+		exit 1
+	fi
+	
 	if [[ "`vercmp $TOOLCHAIN_VERSION 2.0`" == "older" ]]; then
 		error "The toolchain builder is only capable of building toolchains targeting"
 		error "iPhone SDK >=2.0. Sorry."
