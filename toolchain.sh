@@ -89,7 +89,7 @@ MNT_DIR="${FILES_DIR}/mnt"
 FW_DIR="${FILES_DIR}/firmware"
 DARWIN_SOURCES_DIR="$FILES_DIR/darwin_sources"
 
-IPHONE_SDK="iphone_sdk_for_iphone_os_*_final.dmg"
+IPHONE_SDK="iphone_sdk_for_iphone_os_*final.dmg"
 [ -z $IPHONE_SDK_DMG ] && IPHONE_SDK_DMG="${FILES_DIR}/${IPHONE_SDK}"
 
 # URLS
@@ -297,7 +297,7 @@ toolchain_extract_headers() {
     mount_dmg $IPHONE_SDK_DMG $MNT_DIR
 
     # Check the version of the SDK
-    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9]\).*$/\1/')
+    SDK_VERSION=$(plist_key CFBundleShortVersionString "/" "${MNT_DIR}/iPhone SDK.mpkg/Contents/version.plist" | sed 's/^\([0-9].[0-9].[0-9]\).*$/\1/')
     echo "SDK is version ${SDK_VERSION}"
     
     if [ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "older" ]; then
@@ -310,7 +310,7 @@ toolchain_extract_headers() {
     fi
     
     if [[ "`vercmp $SDK_VERSION $TOOLCHAIN_VERSION`" == "newer" ]]; then
-    	PACKAGE="iPhoneSDK`echo $TOOLCHAIN_VERSION | sed 's/\./_/g' `.pkg"
+    	PACKAGE="iPhoneSDK`echo $TOOLCHAIN_VERSION | sed 's/^\([0-9]\).\([0-9]\).*$/\1_\2/' `.pkg"
     else
     	PACKAGE="iPhoneSDKHeadersAndLibs.pkg"
     fi
@@ -380,7 +380,7 @@ toolchain_extract_firmware() {
     	echo "I can't find the firmware image for iPhone/iPod Touch $TOOLCHAIN_VERSION."
     	if ! confirm -N "Do you have it?"; then
 	    	if confirm "Do you want me to download it?"; then
-				APPLE_DL_URL=$(cat ${HERE}/firmware.list | awk '$1 ~ /'"^${TOOLCHAIN_VERSION}$"'/ && $2 ~ /^iPhone\(3G\)$/ { print $3; }')
+				APPLE_DL_URL=$(cat ${HERE}/firmware.list | awk '$1 ~ /^'${TOOLCHAIN_VERSION}'$/ && $2 ~ /^iPhone\(3G\)$/ { print $3; }')
 				FW_FILE=`basename "${APPLE_DL_URL}"`
 				if [ ! $APPLE_DL_URL ] ; then
 				    error "Can't find a download url for the toolchain version and platform specified."
@@ -661,10 +661,10 @@ toolchain_build() {
 	cp -R -p "${DARWIN_SOURCES_DIR}"/IOCDStorageFamily-*/*.h IOKit/storage
 	cp -R -p "${DARWIN_SOURCES_DIR}"/IODVDStorageFamily-*/*.h IOKit/storage
 
-	mkdir DirectoryService
+	mkdir -p DirectoryService
 	cp -R -p "${DARWIN_SOURCES_DIR}"/DirectoryService-*/APIFramework/*.h DirectoryService
 
-	mkdir DirectoryServiceCore
+	mkdir -p DirectoryServiceCore
 	cp -R -p "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Private/*.h DirectoryServiceCore
 	cp -R -p "${DARWIN_SOURCES_DIR}"/DirectoryService-*/CoreFramework/Public/*.h DirectoryServiceCore 
 
@@ -676,7 +676,7 @@ toolchain_build() {
 	cp -R -p  "${DARWIN_SOURCES_DIR}"/WebCore-*/bindings/objc/*.h WebCore
 
 	echo "CoreFoundation"
-	mkdir CoreFoundation
+	mkdir -p CoreFoundation
 	cp -R -p "${LEOPARD_SDK_LIBS}"/CoreFoundation.framework/Versions/A/Headers/* CoreFoundation
 	cp -R -pf "${DARWIN_SOURCES_DIR}"/CF-*/*.h CoreFoundation
 	cp -R -pf "${IPHONE_SDK_LIBS}"/CoreFoundation.framework/Headers/* CoreFoundation
