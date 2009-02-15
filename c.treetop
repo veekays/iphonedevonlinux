@@ -1,0 +1,50 @@
+grammar CStruct
+  
+  rule container
+  	((struct  / typedef) ";" s)+
+  end
+  
+  rule struct
+  	"struct" (S identifier)? s ("{" (s declaration s)+ "}")? <CStructure>
+  end
+  
+  rule typedef
+  	"typedef" S type S identifier s <CTypeDefinition>
+  end
+  
+  # Do I ned to add a possible value assignment?
+  rule declaration
+  	type s identifier s ";" <CDeclaration>
+  end
+  
+  rule qualifier
+  	"const" / "volatile"
+  end
+  
+  rule type
+  	sign:(("signed" / "unsigned") S)?
+  	(primitive / identifier / struct)
+  	(s "*")? <CType>
+  end
+  
+  rule primitive
+  	"int" / "float" / "char" / "bool" / "double" / "long" / "short" / "void"
+  end
+  
+  rule identifier
+  	!"struct" !"typedef" [a-zA-Z_]+ [a-zA-Z_0-9]*
+  end
+  
+  rule s # Optional space
+    S?
+  end
+
+  rule S # Mandatory space
+    white+
+  end
+
+  rule white
+    [ \t\n\r]+
+  end
+
+end

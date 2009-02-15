@@ -883,7 +883,7 @@ class_dump() {
 		done
 		exit 0
 COMMAND
-	if [ $? ]; then
+	if [ $? -eq 1 ]; then
 		error "Failed to export iPhone frameworks."
 		exit 1
 	fi
