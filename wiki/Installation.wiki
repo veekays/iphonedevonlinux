@@ -7,13 +7,101 @@ The toolchain version does not necessarily need to coincide with the running fir
 
 All that being said, the instructions below indicate how to build a toolchain specific to each recent major iPhone firmware version.
 
-== Toolchain for firmware 2.2 / 2.2.1 (currently only 32Bit Linux) ==
+== Toolchain for firmware 3.0 ==
 
+
+=== Before starting ===
+
+We switched now to firmware 3.0. If you are intered in older firmwares see below.
+The firmware 3.0 support is very fresh. If you have some troubles please leave
+a comment or an issue.
+
+We are busy and don't have much time to maintain the toolchain.sh script. If you
+think you could help please drop a note. 
+
+
+=== Checkout and get the files ===
 First create a project directory and check out the latest copy of the toolchain builder. For Example:
 {{{
 mkdir -p ~/Projects/iphone/
 cd ~/Projects/iphone/toolchain
 svn checkout http://iphonedevonlinux.googlecode.com/svn/trunk/ ./
+}}}
+
+You will need to download the iPhone SDK 3.0 from Apple, which can be found here: [http://developer.apple.com/iphone/] You can also choose to download the 3.0 or 3.0.1 firmware from Apple at this stage. If you do not, the script will download the firmware automatically (Firmare 3.0 iPhone(3G)).
+
+You can now copy the SDK and Firmware (if you have it) to the toolchain builder's directory:
+{{{
+cd ~/Projects/iphone/toolchain
+mkdir -p files/firmware
+mv /path/to/iphone_sdk_3.0__leopard__9m2736__final.dmg files/
+mv /path/to/iPhone1,2_3.0_7A341_Restore.ipsw files/firmware
+}}}
+
+
+=== Packages needed to compile the toolchain ===
+
+Before you start to build the firmware you need some packages installed on your system.
+Building the toolchain with gcc-4.2 on my debian amd64 failed. I use gcc-4.3.
+
+Here we provide a list of packages for Debian/Ubuntu
+
+{{{
+apt-get install \
+  automake \
+  cpio \
+  git-core \
+  gcc-4.3 \
+  g++-4.3 \
+  g++ \
+  gobjc-4.3 \
+  g++-4.3-multilib \
+  gzip \
+  libssl-dev  \
+  libcurl4-openssl-dev \
+  make \
+  mount \
+  wget \
+  unzip \
+  gawk \
+  bison \
+  flex \
+  zlib1g-dev \
+  uuid \
+  uuid-dev \
+  subversion \
+  sudo \
+  tar \
+  xar \
+}}}
+
+If you are on 64 bit please install:
+{{{
+apt-get install gcc-4.3-multilib gobjc-4.3-multilib g++-4.3-multilib
+}}}
+
+=== Startup and build ===
+
+Now the environment is set up, you can start the script with:
+{{{
+chmod u+x toolchain.sh
+./toolchain.sh all
+}}}
+
+After all steps, the toolchain is in ./toolchain with the binaries in ./toolchain/pre/bin and the system in ./toolchain/sys/
+After a rebuild you may get patch warnings/errors. Ignore them because
+the build tries to patch already patched files.
+
+
+== Toolchain for firmware 2.2 / 2.2.1  ==
+
+The toolchain 2.2 is outdated. This is for historical reasons.
+
+First create a project directory and check out the latest copy of the toolchain builder. For Example:
+{{{
+mkdir -p ~/Projects/iphone/
+cd ~/Projects/iphone/toolchain
+svn checkout http://iphonedevonlinux.googlecode.com/svn/branches/2.2 ./
 }}}
 
 You will need to download the iPhone SDK 2.2.1 from Apple, which can be found here: [http://developer.apple.com/iphone/] You can also choose to download the 2.2.1 firmware from Apple at this stage. If you do not, the script will download the firmware automatically.
@@ -34,7 +122,7 @@ chmod u+x toolchain.sh
 
 After all steps, the toolchain is in ./toolchain with the binaries in ./toolchain/pre/bin and the system in ./toolchain/sys/
 
-== Toolchain for firmware 2.1 (currently only 32Bit Linux) ==
+== Toolchain for firmware 2.1  ==
 
 Support also exists for firmware 2.1. You can build it in much the same way as the instructions for 2.2 above, with the only variation being in the first command block:
 {{{
@@ -46,7 +134,7 @@ svn checkout http://iphonedevonlinux.googlecode.com/svn/branches/2.1/ ./
 _Note: If you are supplying your own ipsw, it must be for firmware 2.1. However it is okay to use iPhone SDK 2.2, which can be downloaded from here: [http://developer.apple.com/iphone/] as this still contains the required components.
 
 = Testing the Toolchain =
-In the subversion repository is a directory called "apps" which contains a test application you can build and deploy for the iPhone. Regardless of whether you built a 2.1 or 2.2 toolchain, the instructions for testing are the same. You will need an iPhone connected to your local network to do this.
+In the subversion repository is a directory called "apps" which contains a test application you can build and deploy for the iPhone. Regardless of whether you built a 2.1, 2.2 or 3.0 toolchain, the instructions for testing are the same. You will need an iPhone connected to your local network to do this.
 
 Navigate to the apps/HelloToolchain directory and run the following commands, noting that you must set "IP" to the address of your iPhone and change the path as appropriate:
 {{{
