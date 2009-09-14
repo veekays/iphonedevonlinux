@@ -49,35 +49,36 @@ Here we provide a list of packages for Debian/Ubuntu
 {{{
 apt-get install \
   automake \
+  bison \
   cpio \
-  git-core \
-  gcc-4.3 \
-  g++-4.3 \
+  flex \
   g++ \
-  gobjc-4.3 \
+  g++-4.3 \
   g++-4.3-multilib \
+  gawk \
+  gcc-4.3 \
+  git-core \
+  gobjc-4.3 \
   gzip \
-  libssl-dev  \
+  libbz2-dev \
   libcurl4-openssl-dev \
+  libssl-dev  \
   make \
   mount \
-  wget \
-  unzip \
-  gawk \
-  bison \
-  flex \
-  zlib1g-dev \
-  uuid \
-  uuid-dev \
   subversion \
   sudo \
   tar \
+  unzip \
+  uuid \
+  uuid-dev \
+  wget \
   xar \
+  zlib1g-dev \
 }}}
 
 If you are on 64 bit please install:
 {{{
-apt-get install gcc-4.3-multilib gobjc-4.3-multilib g++-4.3-multilib
+apt-get install g++-4.3-multilib gcc-4.3-multilib gobjc-4.3-multilib 
 }}}
 
 === Startup and build ===
