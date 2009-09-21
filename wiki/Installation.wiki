@@ -12,7 +12,7 @@ All that being said, the instructions below indicate how to build a toolchain sp
 
 === Before starting ===
 
-We switched now to firmware 3.0. If you are intered in older firmwares see below.
+We switched now to firmware 3.0. If you are interested in older firmwares see below.
 The firmware 3.0 support is very fresh. If you have some troubles please leave
 a comment or an issue.
 
@@ -93,6 +93,30 @@ After all steps, the toolchain is in ./toolchain with the binaries in ./toolchai
 After a rebuild you may get patch warnings/errors. Ignore them because
 the build tries to patch already patched files.
 
+With the newest version of the toolchain.sh script you can control the behaviour
+and the filesystem places of the toolchain file with environment vars:
+{{{
+  BUILD_DIR:
+    Build the binaries (gcc, otool etc.) in this dir.
+    Default: $TOOLCHAIN/bld
+
+  PREFIX:
+    Create the ./bin ./lib dir for the toolchain executables
+    under the prefix.
+    Default: $TOOLCHAIN/pre
+
+  SRC_DIR:
+    Store the sources (gcc etc.) in this dir.
+    Default: $TOOLCHAIN/src
+
+  SYS_DIR:
+    Put the toolchain sys files (the iphone root system) under this dir.
+    Default: $TOOLCHAIN/sys
+
+ example:
+
+ sudo BUILD_DIR="/tmp/bld" SRC_DIR="/tmp/src" PREFIX="/usr/local" SYS_DIR=/usr/local/iphone_sdk_3.0 ./toolchain.sh all
+}}}
 
 == Toolchain for firmware 2.2 / 2.2.1  ==
 
